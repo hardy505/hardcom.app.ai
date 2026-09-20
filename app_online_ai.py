@@ -8,11 +8,14 @@ st.set_page_config(page_title="AI Search Assistant", page_icon="🌐", layout="c
 st.title("🌐 Program AI Kelompok 1")
 st.caption("Aplikasi AI dengan integrasi penelusuran web langsung (Real-Time Web Data)")
 
-# Input API Key di sidebar
-with st.sidebar:
-    st.header("⚙️ Pengaturan")
-    api_key = st.text_input("Masukkan Google Gemini API Key:", type="password")
-    st.markdown("[Dapatkan API Key di sini](https://aistudio.google.com/)")
+# Cek apakah API Key ada di Streamlit Secrets
+if "GEMINI_API_KEY" in st.secrets:
+    api_key = st.secrets["GEMINI_API_KEY"]
+else:
+    with st.sidebar:
+        st.header("⚙️ Pengaturan")
+        api_key = st.text_input("Masukkan Google Gemini API Key:", type="password")
+        st.markdown("[Dapatkan API Key di sini](https://aistudio.google.com/)")
 
 # Fungsi untuk mencari data di web
 def cari_data_web(query, max_results=3):
