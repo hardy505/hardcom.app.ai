@@ -46,19 +46,7 @@ if user_prompt:
         genai.configure(api_key=api_key)
 
         # Otomatis deteksi model yang tersedia di akun pengguna
-        target_model_name = "gemini-1.5-flash"
-        try:
-            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-            # Prioritaskan flash, jika tidak ada cari model pertama yang support
-            flash_models = [m for m in available_models if 'flash' in m]
-            if flash_models:
-                target_model_name = flash_models[0]
-            elif available_models:
-                target_model_name = available_models[0]
-        except Exception:
-            target_model_name = "models/gemini-1.5-flash"
-
-        model = genai.GenerativeModel(target_model_name)
+        model = genai.GenerativeModel("models/gemini-2.5-flash")
 
         # Tampilkan pesan user
         st.session_state.chat_history.append({"role": "user", "content": user_prompt})
