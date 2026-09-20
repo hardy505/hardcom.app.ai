@@ -46,7 +46,7 @@ if user_prompt:
         genai.configure(api_key=api_key)
 
         # Otomatis deteksi model yang tersedia di akun pengguna
-        model = genai.GenerativeModel("models/gemini-2.5-flash")
+        model = genai.GenerativeModel("models/gemini-3.6-flash")
 
         # Tampilkan pesan user
         st.session_state.chat_history.append({"role": "user", "content": user_prompt})
