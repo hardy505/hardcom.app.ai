@@ -5,7 +5,7 @@ from duckduckgo_search import DDGS
 # Konfigurasi Tampilan
 st.set_page_config(page_title="AI Search Assistant", page_icon="🌐", layout="centered")
 
-st.title("🌐 AI Search Assistant")
+st.title("🌐 AI Search Assistant (Kelompok 1)")
 st.caption("Aplikasi AI dengan integrasi penelusuran web langsung (Real-Time Web Data)")
 
 # Input API Key di sidebar
