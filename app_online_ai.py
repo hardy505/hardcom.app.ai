@@ -17,17 +17,18 @@ else:
         api_key = st.text_input("Masukkan Google Gemini API Key:", type="password")
         st.markdown("[Dapatkan API Key di sini](https://aistudio.google.com/)")
 
-# Fungsi untuk mencari data di web
-def cari_data_web(query, max_results=3):
+# Optimasi: Batasi max_results=2 dan batasi panjang teks snippet agar loading web instan
+def cari_data_web(query, max_results=2):
     try:
         with DDGS() as ddgs:
             results = list(ddgs.text(query, max_results=max_results))
             ringkasan_web = ""
             for i, r in enumerate(results, 1):
-                ringkasan_web += f"\n[Sumber {i}]: {r.get('title', '')}\nURL: {r.get('href', '')}\nKonten: {r.get('body', '')}\n"
-            return ringkasan_web if ringkasan_web else "Tidak ditemukan hasil web yang spesifik."
-    except Exception as e:
-        return f"Catatan: Pencarian web sedang terbatas ({str(e)}). Menggunakan pengetahuan internal AI."
+                body = r.get('body', '')[:250]  # Pangkas ringkasan maksimal 250 karakter
+                ringkasan_web += f"\n[Sumber {i}]: {r.get('title', '')} | Info: {body}\n"
+            return ringkasan_web if ringkasan_web else "Data web tidak ditemukan."
+    except Exception:
+        return "Pencarian web terlewati (menggunakan database internal AI)."
 
 # Inisialisasi Riwayat Pesan
 if "chat_history" not in st.session_state:
@@ -45,12 +46,6 @@ if user_prompt:
     if not api_key:
         st.error("Silakan masukkan Gemini API Key terlebih dahulu di sidebar kiri!")
     else:
-        # Konfigurasi AI
-        genai.configure(api_key=api_key)
-
-        # Otomatis deteksi model yang tersedia di akun pengguna
-        model = genai.GenerativeModel("models/gemini-3.6-flash")
-
         # Tampilkan pesan user
         st.session_state.chat_history.append({"role": "user", "content": user_prompt})
         with st.chat_message("user"):
@@ -58,29 +53,42 @@ if user_prompt:
 
         # Proses pencarian dan jawaban
         with st.chat_message("assistant"):
-            status_box = st.status("Sedang mencari informasi di internet...", expanded=False)
-            
+            status_box = st.status("🔍 Menelusuri ringkasan web...", expanded=False)
             search_context = cari_data_web(user_prompt)
-            status_box.update(label="AI sedang menganalisis jawaban...", state="running")
+            status_box.update(label="⚡ Menyusun jawaban...", state="running")
 
             final_prompt = f"""
-            Kamu adalah asisten AI teknis yang cerdas dan solutif.
-            Jawab pertanyaan pengguna secara jelas, terstruktur, dan ramah.
+            Instruksi: Kamu asisten teknis AI solutif. Jawab secara ringkas, to the point, dan terstruktur dalam Bahasa Indonesia.
             
-            Informasi Tambahan dari Web:
+            Konteks Web Terbaru:
             {search_context}
             
-            Pertanyaan Pengguna:
+            Pertanyaan:
             {user_prompt}
-            
-            Berikan analisis penyebab masalah dan langkah-langkah solusinya.
             """
 
             try:
-                response = model.generate_content(final_prompt)
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel("models/gemini-3.6-flash")
+
+                # Optimasi: Gunakan streaming agar teks langsung muncul per suku kata
+                response_stream = model.generate_content(final_prompt, stream=True)
+                
                 status_box.update(label="Selesai!", state="complete", expanded=False)
-                st.markdown(response.text)
-                st.session_state.chat_history.append({"role": "assistant", "content": response.text})
+                
+                response_container = st.empty()
+                full_text = ""
+                for chunk in response_stream:
+                    if chunk.text:
+                        full_text += chunk.text
+                        response_container.markdown(full_text + "▌")
+                
+                response_container.markdown(full_text)
+                st.session_state.chat_history.append({"role": "assistant", "content": full_text})
+
             except Exception as err:
                 status_box.update(label="Gagal menghasilkan respons", state="error", expanded=False)
-                st.error(f"Terjadi kesalahan saat memanggil AI: {str(err)}")
+                if "429" in str(err):
+                    st.warning("⏳ Kuota API sedang sibuk/penuh. Silakan tunggu sebentar lalu coba lagi.")
+                else:
+                    st.error(f"Terjadi kesalahan: {str(err)}")
