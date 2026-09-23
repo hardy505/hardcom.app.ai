@@ -36,6 +36,29 @@ def cari_data_web(query):
     except Exception:
         return ""
 
+# Tampilan awal jika belum ada obrolan
+if len(st.session_state.chat_history) == 0:
+    st.markdown('<div class="hero-sub" style="text-align:center; color:#64748b; margin-bottom:1.5rem;">Konsultasikan gejala kerusakan hardware komputer, laptop, dan komponen PC Anda.</div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🖥️ Layar laptop berkedip saat buka-tutup", use_container_width=True):
+            st.session_state.temp_prompt = "Layar laptop saya sering berkedip dan kadang mati saat engsel dibuka tutup. Apa penyebab hardware-nya dan bagaimana solusinya?"
+            st.rerun()
+            
+        if st.button("🔊 Bunyi bip panjang berulang saat PC nyala", use_container_width=True):
+            st.session_state.temp_prompt = "Komputer PC saya tidak mau menampilkan gambar dan mengeluarkan bunyi beep panjang berulang-ulang saat dinyalakan. Masalahnya di komponen apa?"
+            st.rerun()
+
+    with col2:
+        if st.button("🔥 Laptop cepat panas dan kipas berisik", use_container_width=True):
+            st.session_state.temp_prompt = "Laptop cepat sekali panas, kipas berputar kencang dan berisik lalu sering mati mendadak saat dipakai kerja. Apa diagnosa kerusakannya?"
+            st.rerun()
+            
+        if st.button("⚡ PC mendadak mati sendiri saat beban kerja berat", use_container_width=True):
+            st.session_state.temp_prompt = "PC sering mendadak mati atau restart sendiri saat dipakai render atau game berat. Apakah ada masalah pada PSU atau suhu prosesor?"
+            st.rerun()
+
 # Riwayat Chat
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
