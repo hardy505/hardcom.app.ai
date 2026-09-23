@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from groq import Groq
 from duckduckgo_search import DDGS
 
 # Konfigurasi Tampilan
@@ -8,79 +8,97 @@ st.set_page_config(page_title="AI Search Assistant", page_icon="🌐", layout="c
 st.title("🌐 Program AI Kelompok 1")
 st.caption("Aplikasi AI dengan integrasi penelusuran web langsung (Real-Time Web Data)")
 
-# Cek apakah API Key ada di Streamlit Secrets
-if "GEMINI_API_KEY" in st.secrets:
-    api_key = st.secrets["GEMINI_API_KEY"]
+# Cek API Key Groq (Bisa dari Secrets atau Sidebar)
+api_key = None
+if "GROQ_API_KEY" in st.secrets:
+    api_key = st.secrets["GROQ_API_KEY"]
 else:
-    with st.sidebar:
-        st.header("⚙️ Pengaturan")
-        api_key = st.text_input("Masukkan Google Gemini API Key:", type="password")
-        st.markdown("[Dapatkan API Key di sini](https://aistudio.google.com/)")
+    with st.sidebar:
+        st.header("⚙️ Pengaturan")
+        api_key = st.text_input("Masukkan Groq API Key:", type="password")
+        st.markdown("[Dapatkan API Key Gratis](https://console.groq.com/)")
 
-# Fungsi untuk mencari data di web
-def cari_data_web(query, max_results=3):
-    try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=max_results))
-            ringkasan_web = ""
-            for i, r in enumerate(results, 1):
-                ringkasan_web += f"\n[Sumber {i}]: {r.get('title', '')}\nURL: {r.get('href', '')}\nKonten: {r.get('body', '')}\n"
-            return ringkasan_web if ringkasan_web else "Tidak ditemukan hasil web yang spesifik."
-    except Exception as e:
-        return f"Catatan: Pencarian web sedang terbatas ({str(e)}). Menggunakan pengetahuan internal AI."
+# Fungsi pencarian web dengan batas ringkas
+def cari_data_web(query):
+    # Lewati pencarian jika hanya sapaan pendek agar respon instan
+    if len(query.strip().split()) <= 1 or query.lower() in ["halo", "hallo", "hai", "p", "test"]:
+        return ""
+    try:
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, max_results=2))
+            if not results:
+                return ""
+            ringkasan = ""
+            for i, r in enumerate(results, 1):
+                snippet = r.get("body", "")[:200]
+                ringkasan += f"\n[Sumber {i}]: {r.get('title', '')} | {snippet}"
+            return ringkasan
+    except Exception:
+        return ""
 
-# Inisialisasi Riwayat Pesan
+# Riwayat Chat
 if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+    st.session_state.chat_history = []
 
-# Tampilkan riwayat chat sebelumnya
 for msg in st.session_state.chat_history:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-# Kolom Prompt Pengguna
 user_prompt = st.chat_input("Tanyakan apa saja (misal: layar laptop berkedip saat buka tutup)...")
 
 if user_prompt:
-    if not api_key:
-        st.error("Silakan masukkan Gemini API Key terlebih dahulu di sidebar kiri!")
-    else:
-        # Konfigurasi AI
-        genai.configure(api_key=api_key)
+    if not api_key:
+        st.error("Silakan masukkan Groq API Key di sidebar atau Secrets!")
+    else:
+        st.session_state.chat_history.append({"role": "user", "content": user_prompt})
+        with st.chat_message("user"):
+            st.markdown(user_prompt)
 
-        # Otomatis deteksi model yang tersedia di akun pengguna
-        model = genai.GenerativeModel("models/gemini-3.6-flash")
+        with st.chat_message("assistant"):
+            status_box = st.status("🔍 Memeriksa referensi...", expanded=False)
+            web_info = cari_data_web(user_prompt)
+            
+            status_box.update(label="⚡ Tanya Hardy sedang menjawab...", state="running")
 
-        # Tampilkan pesan user
-        st.session_state.chat_history.append({"role": "user", "content": user_prompt})
-        with st.chat_message("user"):
-            st.markdown(user_prompt)
+            client = Groq(api_key=api_key)
 
-        # Proses pencarian dan jawaban
-        with st.chat_message("assistant"):
-            status_box = st.status("Sedang mencari informasi di internet...", expanded=False)
-            
-            search_context = cari_data_web(user_prompt)
-            status_box.update(label="AI sedang menganalisis jawaban...", state="running")
+            system_instruction = (
+                "Kamu adalah asisten AI teknis yang cerdas, cepat, dan solutif. "
+                "Jawab langsung to-the-point dalam Bahasa Indonesia yang ramah dan rapi. "
+                "Jika ada konteks web tambahan, gunakan untuk memperkaya jawabanmu."
+            )
 
-            final_prompt = f"""
-            Kamu adalah asisten AI teknis yang cerdas dan solutif.
-            Jawab pertanyaan pengguna secara jelas, terstruktur, dan ramah.
-            
-            Informasi Tambahan dari Web:
-            {search_context}
-            
-            Pertanyaan Pengguna:
-            {user_prompt}
-            
-            Berikan analisis penyebab masalah dan langkah-langkah solusinya.
-            """
+            prompt_lengkap = user_prompt
+            if web_info:
+                prompt_lengkap = f"Konteks Web:\n{web_info}\n\nPertanyaan: {user_prompt}"
 
-            try:
-                response = model.generate_content(final_prompt)
-                status_box.update(label="Selesai!", state="complete", expanded=False)
-                st.markdown(response.text)
-                st.session_state.chat_history.append({"role": "assistant", "content": response.text})
-            except Exception as err:
-                status_box.update(label="Gagal menghasilkan respons", state="error", expanded=False)
-                st.error(f"Terjadi kesalahan saat memanggil AI: {str(err)}")
+            messages = [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": prompt_lengkap}
+            ]
+
+            response_container = st.empty()
+            full_text = ""
+
+            try:
+                # Groq memproses jawaban dalam hitungan milidetik
+                completion = client.chat.completions.create(
+                    model="qwen/qwen3.8-27b",
+                    messages=messages,
+                    stream=True
+                )
+
+                status_box.update(label="Selesai!", state="complete", expanded=False)
+
+                for chunk in completion:
+                    content = chunk.choices[0].delta.content
+                    if content:
+                        full_text += content
+                        response_container.markdown(full_text + "▌")
+
+                response_container.markdown(full_text)
+                st.session_state.chat_history.append({"role": "assistant", "content": full_text})
+
+            except Exception as e:
+                status_box.update(label="Gagal menghasilkan respons", state="error", expanded=False)
+                st.error(f"Terjadi kesalahan: {str(e)}")
