@@ -2,13 +2,13 @@ import streamlit as st
 from groq import Groq
 from duckduckgo_search import DDGS
 
-# Konfigurasi Tampilan
+# --- 1. KONFIGURASI TAMPILAN ---
 st.set_page_config(page_title="AI Search Assistant", page_icon="🌐", layout="centered")
 
 st.title("🌐 Program AI Kelompok 1")
 st.caption("Aplikasi AI dengan integrasi penelusuran web langsung (Real-Time Web Data)")
 
-# Cek API Key Groq (Bisa dari Secrets atau Sidebar)
+# --- 2. API KEY GROQ ---
 api_key = None
 if "GROQ_API_KEY" in st.secrets:
     api_key = st.secrets["GROQ_API_KEY"]
@@ -18,9 +18,14 @@ else:
         api_key = st.text_input("Masukkan Groq API Key:", type="password")
         st.markdown("[Dapatkan API Key Gratis](https://console.groq.com/)")
 
-# Fungsi pencarian web dengan batas ringkas
+# --- 3. INISIALISASI RIWAYAT CHAT ---
+# Wajib ditaruh di awal sebelum mengecek panjang riwayat
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+# --- 4. FUNGSI PENCARIAN WEB ---
 def cari_data_web(query):
-    # Lewati pencarian jika hanya sapaan pendek agar respon instan
+    # Lewati pencarian jika sapaan pendek agar respon instan
     if len(query.strip().split()) <= 1 or query.lower() in ["halo", "hallo", "hai", "p", "test"]:
         return ""
     try:
@@ -36,9 +41,9 @@ def cari_data_web(query):
     except Exception:
         return ""
 
-# Tampilan awal jika belum ada obrolan
+# --- 5. TAMPILAN AWAL & TOMBOL SARAN (JIKA CHAT KOSONG) ---
 if len(st.session_state.chat_history) == 0:
-    st.markdown('<div class="hero-sub" style="text-align:center; color:#64748b; margin-bottom:1.5rem;">Konsultasikan gejala kerusakan hardware komputer, laptop, dan komponen PC Anda.</div>', unsafe_allow_html=True)
+    st.markdown('<div style="text-align:center; color:#64748b; margin-bottom:1.5rem;">Konsultasikan gejala kerusakan hardware komputer, laptop, dan komponen PC Anda.</div>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
@@ -59,16 +64,20 @@ if len(st.session_state.chat_history) == 0:
             st.session_state.temp_prompt = "PC sering mendadak mati atau restart sendiri saat dipakai render atau game berat. Apakah ada masalah pada PSU atau suhu prosesor?"
             st.rerun()
 
-# Riwayat Chat
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-
+# --- 6. TAMPILKAN RIWAYAT PESAN ---
 for msg in st.session_state.chat_history:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-user_prompt = st.chat_input("Tanyakan apa saja (misal: layar laptop berkedip saat buka tutup)...")
+# --- 7. INPUT CHAT & PENANGANAN TOMBOL ---
+user_prompt = st.chat_input("Tanyakan gejala kerusakan hardware komputer/laptop...")
 
+# Jika tombol starter diklik, gantikan prompt dengan isi tombol
+if "temp_prompt" in st.session_state and st.session_state.temp_prompt:
+    user_prompt = st.session_state.temp_prompt
+    st.session_state.temp_prompt = None
+
+# --- 8. PEMROSESAN JAWABAN AI ---
 if user_prompt:
     if not api_key:
         st.error("Silakan masukkan Groq API Key di sidebar atau Secrets!")
@@ -81,19 +90,19 @@ if user_prompt:
             status_box = st.status("🔍 Memeriksa referensi...", expanded=False)
             web_info = cari_data_web(user_prompt)
             
-            status_box.update(label="⚡ Tanya Hardy sedang menjawab...", state="running")
+            status_box.update(label="⚡ Menganalisis kerusakan...", state="running")
 
             client = Groq(api_key=api_key)
 
             system_instruction = (
-                "Kamu adalah asisten AI teknis yang cerdas, cepat, dan solutif. "
-                "Jawab langsung to-the-point dalam Bahasa Indonesia yang ramah dan rapi. "
-                "Jika ada konteks web tambahan, gunakan untuk memperkaya jawabanmu."
+                "Kamu adalah asisten teknisi hardware komputer yang ahli, cepat, dan solutif. "
+                "Berikan analisis kemungkinan komponen yang bermasalah dan langkah-langkah pengecekan praktis. "
+                "Jawab langsung to-the-point dalam Bahasa Indonesia yang ramah, rapi, dan mudah dipahami."
             )
 
             prompt_lengkap = user_prompt
             if web_info:
-                prompt_lengkap = f"Konteks Web:\n{web_info}\n\nPertanyaan: {user_prompt}"
+                prompt_lengkap = f"Konteks Web Tambahan:\n{web_info}\n\nPertanyaan Kerusakan:\n{user_prompt}"
 
             messages = [
                 {"role": "system", "content": system_instruction},
@@ -104,7 +113,6 @@ if user_prompt:
             full_text = ""
 
             try:
-                # Groq memproses jawaban dalam hitungan milidetik
                 completion = client.chat.completions.create(
                     model="qwen/qwen3.8-27b",
                     messages=messages,
