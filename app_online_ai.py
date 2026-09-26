@@ -19,7 +19,6 @@ else:
         st.markdown("[Dapatkan API Key Gratis](https://console.groq.com/)")
 
 # --- 3. INISIALISASI RIWAYAT CHAT ---
-# Wajib ditaruh di awal sebelum mengecek panjang riwayat
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
@@ -41,7 +40,7 @@ def cari_data_web(query):
     except Exception:
         return ""
 
-# --- 5. TAMPILAN AWAL & TOMBOL SARAN (JIKA CHAT KOSONG) ---
+# --- 5. TAMPILAN AWAL & TOMBOL SARAN ---
 if len(st.session_state.chat_history) == 0:
     st.markdown('<div style="text-align:center; color:#64748b; margin-bottom:1.5rem;">Konsultasikan gejala kerusakan hardware komputer, laptop, dan komponen PC Anda.</div>', unsafe_allow_html=True)
     
@@ -72,7 +71,6 @@ for msg in st.session_state.chat_history:
 # --- 7. INPUT CHAT & PENANGANAN TOMBOL ---
 user_prompt = st.chat_input("Tanyakan gejala kerusakan hardware komputer/laptop...")
 
-# Jika tombol starter diklik, gantikan prompt dengan isi tombol
 if "temp_prompt" in st.session_state and st.session_state.temp_prompt:
     user_prompt = st.session_state.temp_prompt
     st.session_state.temp_prompt = None
@@ -113,9 +111,11 @@ if user_prompt:
             full_text = ""
 
             try:
+                # Menggunakan max_tokens=800 agar aman dari limit 1000 OTPM
                 completion = client.chat.completions.create(
                     model="qwen/qwen3.8-27b",
                     messages=messages,
+                    max_tokens=800,
                     stream=True
                 )
 
@@ -132,4 +132,7 @@ if user_prompt:
 
             except Exception as e:
                 status_box.update(label="Gagal menghasilkan respons", state="error", expanded=False)
-                st.error(f"Terjadi kesalahan: {str(e)}")
+                if "429" in str(e):
+                    st.warning("⏳ Server sedang sibuk karena batas limit per menit. Silakan tunggu beberapa detik lalu coba lagi.")
+                else:
+                    st.error(f"Terjadi kesalahan: {str(e)}")
