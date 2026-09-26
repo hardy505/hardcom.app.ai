@@ -8,23 +8,36 @@ st.set_page_config(page_title="AI Search Assistant", page_icon="🌐", layout="c
 st.title("🌐 Program AI Kelompok 1")
 st.caption("Aplikasi AI dengan integrasi penelusuran web langsung (Real-Time Web Data)")
 
-# --- 2. API KEY GROQ ---
-api_key = None
-if "GROQ_API_KEY" in st.secrets:
-    api_key = st.secrets["GROQ_API_KEY"]
-else:
-    with st.sidebar:
-        st.header("⚙️ Pengaturan")
-        api_key = st.text_input("Masukkan Groq API Key:", type="password")
-        st.markdown("[Dapatkan API Key Gratis](https://console.groq.com/)")
-
-# --- 3. INISIALISASI RIWAYAT CHAT ---
+# --- 2. INISIALISASI RIWAYAT CHAT ---
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
+# --- 3. API KEY GROQ & SIDEBAR MENU ---
+api_key = None
+if "GROQ_API_KEY" in st.secrets:
+    api_key = st.secrets["GROQ_API_KEY"]
+
+with st.sidebar:
+    st.header("⚙️ Pengaturan & Menu")
+    
+    # Tombol Obrolan Baru / Reset Chat
+    if st.button("💬 Obrolan Baru", use_container_width=True, type="primary"):
+        st.session_state.chat_history = []
+        if "temp_prompt" in st.session_state:
+            st.session_state.temp_prompt = None
+        st.rerun()
+    
+    st.divider()
+    
+    # Input API Key jika belum disetel di Secrets
+    if not api_key:
+        api_key = st.text_input("Masukkan Groq API Key:", type="password")
+        st.markdown("[Dapatkan API Key Gratis](https://console.groq.com/)")
+    else:
+        st.success("✅ API Key terhubung dari Secrets")
+
 # --- 4. FUNGSI PENCARIAN WEB ---
 def cari_data_web(query):
-    # Lewati pencarian jika sapaan pendek agar respon instan
     if len(query.strip().split()) <= 1 or query.lower() in ["halo", "hallo", "hai", "p", "test"]:
         return ""
     try:
@@ -111,7 +124,6 @@ if user_prompt:
             full_text = ""
 
             try:
-                # Menggunakan max_tokens=800 agar aman dari limit 1000 OTPM
                 completion = client.chat.completions.create(
                     model="qwen/qwen3.8-27b",
                     messages=messages,
