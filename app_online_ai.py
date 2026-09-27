@@ -3,7 +3,17 @@ from groq import Groq
 from duckduckgo_search import DDGS
 
 # --- 1. KONFIGURASI TAMPILAN ---
-st.set_page_config(page_title="AI Search Assistant", page_icon="🌐", layout="centered")
+st.set_page_config(
+    page_title="SIMDAK - AI Assistant",
+    page_icon="🤖",
+    layout="centered"
+)
+
+# Header Identitas Proyek
+st.title("🤖 SIMDAK")
+st.subheader("Sistem Identifikasi Masalah & Diagnosa Kerusakan Komputer")
+st.caption("AI Assistant Berbasis Web untuk Troubleshooting Hardware Komputer")
+st.divider()
 
 st.title("🌐 Program AI Kelompok 1")
 st.caption("Aplikasi AI dengan integrasi penelusuran web langsung (Real-Time Web Data)")
