@@ -15,9 +15,6 @@ st.subheader("Sistem Identifikasi Masalah & Diagnosa Kerusakan Komputer")
 st.caption("AI Assistant Berbasis Web untuk Troubleshooting Hardware Komputer")
 st.divider()
 
-st.title("🌐 Program AI Kelompok 1")
-st.caption("Aplikasi AI dengan integrasi penelusuran web langsung (Real-Time Web Data)")
-
 # --- 2. INISIALISASI RIWAYAT CHAT ---
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
